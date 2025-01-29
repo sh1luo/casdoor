@@ -1,5 +1,5 @@
 <h1 align="center" style="border-bottom: none;">📦⚡️ Casdoor</h1>
-<h3 align="center">A UI-first centralized authentication / Single-Sign-On (SSO) platform based on OAuth 2.0 / OIDC.</h3>
+<h3 align="center">An open-source UI-first Identity and Access Management (IAM) / Single-Sign-On (SSO) platform with web UI supporting OAuth 2.0, OIDC, SAML, CAS, LDAP, SCIM, WebAuthn, TOTP, MFA and RADIUS</h3>
 <p align="center">
   <a href="#badge">
     <img alt="semantic-release" src="https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg">
@@ -7,164 +7,96 @@
   <a href="https://hub.docker.com/r/casbin/casdoor">
     <img alt="docker pull casbin/casdoor" src="https://img.shields.io/docker/pulls/casbin/casdoor.svg">
   </a>
-  <a href="https://github.com/casbin/casdoor/actions/workflows/build.yml">
-    <img alt="GitHub Workflow Status (branch)" src="https://github.com/casbin/jcasbin/workflows/build/badge.svg?style=flat-square">
+  <a href="https://github.com/casdoor/casdoor/actions/workflows/build.yml">
+    <img alt="GitHub Workflow Status (branch)" src="https://github.com/casdoor/casdoor/workflows/Build/badge.svg?style=flat-square">
   </a>
-  <a href="https://github.com/casbin/casdoor/releases/latest">
-    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/casbin/casdoor.svg">
+  <a href="https://github.com/casdoor/casdoor/releases/latest">
+    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/casdoor/casdoor.svg">
   </a>
-  <a href="https://hub.docker.com/repository/docker/casbin/casdoor">
+  <a href="https://hub.docker.com/r/casbin/casdoor">
     <img alt="Docker Image Version (latest semver)" src="https://img.shields.io/badge/Docker%20Hub-latest-brightgreen">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://goreportcard.com/report/github.com/casbin/casdoor">
-    <img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/casbin/casdoor?style=flat-square">
+  <a href="https://goreportcard.com/report/github.com/casdoor/casdoor">
+    <img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/casdoor/casdoor?style=flat-square">
   </a>
-  <a href="https://github.com/casbin/casdoor/blob/master/LICENSE">
-    <img src="https://img.shields.io/github/license/casbin/casdoor?style=flat-square" alt="license">
+  <a href="https://github.com/casdoor/casdoor/blob/master/LICENSE">
+    <img src="https://img.shields.io/github/license/casdoor/casdoor?style=flat-square" alt="license">
   </a>
-  <a href="https://github.com/casbin/casdoor/issues">
-    <img alt="GitHub issues" src="https://img.shields.io/github/issues/casbin/casdoor?style=flat-square">
+  <a href="https://github.com/casdoor/casdoor/issues">
+    <img alt="GitHub issues" src="https://img.shields.io/github/issues/casdoor/casdoor?style=flat-square">
   </a>
   <a href="#">
-    <img alt="GitHub stars" src="https://img.shields.io/github/stars/casbin/casdoor?style=flat-square">
+    <img alt="GitHub stars" src="https://img.shields.io/github/stars/casdoor/casdoor?style=flat-square">
   </a>
-  <a href="https://github.com/casbin/casdoor/network">
-    <img alt="GitHub forks" src="https://img.shields.io/github/forks/casbin/casdoor?style=flat-square">
+  <a href="https://github.com/casdoor/casdoor/network">
+    <img alt="GitHub forks" src="https://img.shields.io/github/forks/casdoor/casdoor?style=flat-square">
   </a>
+  <a href="https://crowdin.com/project/casdoor-site">
+    <img alt="Crowdin" src="https://badges.crowdin.net/casdoor-site/localized.svg">
+  </a>
+  <a href="https://discord.gg/5rPsrAzK7S">
+    <img alt="Discord" src="https://img.shields.io/discord/1022748306096537660?style=flat-square&logo=discord&label=discord&color=5865F2">
+  </a>
+</p>
+
+<p align="center">
+  <sup>Sponsored by</sup>
+  <br>
+  <a href="https://stytch.com/docs?utm_source=oss-sponsorship&utm_medium=paid_sponsorship&utm_campaign=casbin">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://cdn.casbin.org/img/stytch-white.png">
+      <source media="(prefers-color-scheme: light)" srcset="https://cdn.casbin.org/img/stytch-charcoal.png">
+      <img src="https://cdn.casbin.org/img/stytch-charcoal.png" width="275">
+    </picture>
+  </a><br/>
+  <a href="https://stytch.com/docs?utm_source=oss-sponsorship&utm_medium=paid_sponsorship&utm_campaign=casbin"><b>Build auth with fraud prevention, faster.</b><br/> Try Stytch for API-first authentication, user & org management, multi-tenant SSO, MFA, device fingerprinting, and more.</a>
+  <br>
 </p>
 
 ## Online demo
 
-Deployed site: https://door.casbin.com/
+- Read-only site: https://door.casdoor.com (any modification operation will fail)
+- Writable site: https://demo.casdoor.com (original data will be restored for every 5 minutes)
 
-## Quick Start
+## Documentation
 
-Run your own casdoor program in a few minutes:smiley:
+https://casdoor.org
 
-### Download
+## Install
 
-There are two methods, get code via go subcommand `get`:
+- By source code: https://casdoor.org/docs/basic/server-installation
+- By Docker: https://casdoor.org/docs/basic/try-with-docker
+- By Kubernetes Helm: https://casdoor.org/docs/basic/try-with-helm
 
-```shell
-go get github.com/casbin/casdoor
-```
+## How to connect to Casdoor?
 
-  or `git`:
+https://casdoor.org/docs/how-to-connect/overview
 
-```bash
-git clone https://github.com/casbin/casdoor
-```
+## Casdoor Public API
 
-Finally, change directory:
+- Docs: https://casdoor.org/docs/basic/public-api
+- Swagger: https://door.casdoor.com/swagger
 
-```bash
-cd casdoor/
-```
+## Integrations
 
-We provide two start up methods for all kinds of users.
+https://casdoor.org/docs/category/integrations
 
-### Manual
+## How to contact?
 
-#### Simple configuration
-
-Edit `conf/app.conf`, modify `dataSourceName` to correct database info, which follows this format:
-
-```bash
-username:password@tcp(database_ip:database_port)/
-```
-
-#### Run
-
-Casdoor provides two run modes, the difference is binary size and user prompt.
-
-##### Dev Mode
-
-Edit `conf/app.conf`, set `runmode=dev`. Firstly build front-end files:
-
-```bash
-cd web/ && yarn && yarn run start
-```
-*❗ A word of caution ❗: Casdoor's front-end is built using yarn. You should use `yarn` instead of `npm`. It has a potential failure during building the files if you use `npm`.*
-
-Then build back-end binary file, change directory to root(Relative to casdoor):
-
-```bash
-go run main.go
-```
-
-That's it! Try to visit http://127.0.0.1:7001/. :small_airplane:  
-**But make sure you always request the backend port 8000 when you are using SDKs.**
-
-##### Production Mode
-
-Edit `conf/app.conf`, set `runmode=prod`. Firstly build front-end files:
-
-```bash
-cd web/ && yarn && yarn run build
-```
-
-Then build back-end binary file, change directory to root(Relative to casdoor):
-
-```bash
-go build main.go && sudo ./main
-```
-
-> Notice, you should visit back-end port, default 8000. Now try to visit **http://SERVER_IP:8000/**
-
-### Docker
-
-This method requires [docker](https://docs.docker.com/get-docker/) and [docker-compose](https://docs.docker.com/compose/install/) to be installed first.
-
-#### Simple configuration
-
-Edit `conf/app.conf`, modify `dataSourceName` to the fixed content:
-
-```bash
-dataSourceName = root:123@tcp(db:3306)/
-```
-
-> If you need to modify `conf/app.conf`, you need to re-run `docker-compose up`.
-
-#### Run
-
-```bash
-docker-compose up
-```
-
-That's it! Try to visit http://localhost:8000/. :small_airplane:
-
-### Docker Hub
-
-This method requires [docker](https://docs.docker.com/get-docker/) and [docker-compose](https://docs.docker.com/compose/install/) to be installed first.
-
-```bash
-docker pull casbin/casdoor
-```
-
-## Detailed documentation
-
-We also provide a complete [document](https://casdoor.org/) as a reference.
-
-## Other examples
-
-These all use casdoor as a centralized authentication platform.
-
-- [Casnode](https://github.com/casbin/casnode): Next-generation forum software based on React + Golang.
-- [Casbin-OA](https://github.com/casbin/casbin-oa): A full-featured OA(Office Assistant) system.
-- ......
+- Discord: https://discord.gg/5rPsrAzK7S
+- Contact: https://casdoor.org/help
 
 ## Contribute
 
-For casdoor, if you have any questions, you can give Issues, and you can also directly Pull Requests(but we recommend give issues first to communicate with the community).
+For casdoor, if you have any questions, you can give Issues, or you can also directly start Pull Requests(but we recommend giving issues first to communicate with the community).
 
-### I18n notice
+### I18n translation
 
-If you are contributing to casdoor, please note that we use [Crowdin](https://crowdin.com/project/casdoor-web) as translating platform and i18next as translating tool. When you add some words using i18next in the ```web/``` directory, please remember to add what you have added to the ```web/src/locales/en/data.json``` file.
+If you are contributing to casdoor, please note that we use [Crowdin](https://crowdin.com/project/casdoor-site) as translating platform and i18next as translating tool. When you add some words using i18next in the `web/` directory, please remember to add what you have added to the `web/src/locales/en/data.json` file.
 
 ## License
 
- [Apache-2.0](https://github.com/casbin/casdoor/blob/master/LICENSE)
-
+[Apache-2.0](https://github.com/casdoor/casdoor/blob/master/LICENSE)

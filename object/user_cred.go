@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,25 +14,36 @@
 
 package object
 
-import (
-	"strconv"
-	"strings"
+import "github.com/casdoor/casdoor/cred"
 
-	"github.com/casbin/casdoor/util"
-)
+func calculateHash(user *User) (string, error) {
+	syncer, err := getDbSyncerForUser(user)
+	if err != nil {
+		return "", err
+	}
 
-func calculateHash(user *User) string {
-	s := strings.Join([]string{user.Id, user.Password, user.DisplayName, user.Avatar, user.Phone, strconv.Itoa(user.Score)}, "|")
-	return util.GetMd5Hash(s)
+	if syncer == nil {
+		return "", nil
+	}
+
+	return syncer.calculateHash(user), nil
 }
 
-func (user *User) UpdateUserHash() {
-	hash := calculateHash(user)
+func (user *User) UpdateUserHash() error {
+	hash, err := calculateHash(user)
+	if err != nil {
+		return err
+	}
+
 	user.Hash = hash
+	return nil
 }
 
 func (user *User) UpdateUserPassword(organization *Organization) {
-	if organization.PasswordType == "salt" {
-		user.Password = getSaltedPassword(user.Password, organization.PasswordSalt)
+	credManager := cred.GetCredManager(organization.PasswordType)
+	if credManager != nil {
+		hashedPassword := credManager.GetHashedPassword(user.Password, user.PasswordSalt, organization.PasswordSalt)
+		user.Password = hashedPassword
+		user.PasswordType = organization.PasswordType
 	}
 }

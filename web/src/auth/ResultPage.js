@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,10 +13,9 @@
 // limitations under the License.
 
 import React from "react";
-import {Result, Button} from 'antd';
+import {Button, Card, Result, Spin} from "antd";
 import i18next from "i18next";
 import {authConfig} from "./Auth";
-import * as Util from "./Util";
 import * as ApplicationBackend from "../backend/ApplicationBackend";
 import * as Setting from "../Setting";
 
@@ -34,7 +33,7 @@ class ResultPage extends React.Component {
     if (this.state.applicationName !== undefined) {
       this.getApplication();
     } else {
-      Util.showMessage("error", `Unknown application name: ${this.state.applicationName}`);
+      Setting.showMessage("error", `Unknown application name: ${this.state.applicationName}`);
     }
   }
 
@@ -44,33 +43,66 @@ class ResultPage extends React.Component {
     }
 
     ApplicationBackend.getApplication("admin", this.state.applicationName)
-      .then((application) => {
+      .then((res) => {
+        if (res.status === "error") {
+          Setting.showMessage("error", res.msg);
+          return;
+        }
+
+        this.onUpdateApplication(res.data);
         this.setState({
-          application: application,
+          application: res.data,
         });
       });
+  }
+
+  onUpdateApplication(application) {
+    this.props.onUpdateApplication(application);
   }
 
   render() {
     const application = this.state.application;
 
+    if (application === null) {
+      return (
+        <div style={{display: "flex", justifyContent: "center", alignItems: "center"}}>
+          <Spin size="large" tip={i18next.t("login:Loading")} style={{paddingTop: "10%"}} />
+        </div>
+      );
+    }
+
     return (
-      <div>
-        {
-          Setting.renderHelmet(application)
-        }
-        <Result
-          status="success"
-          title={i18next.t("signup:Your account has been created!")}
-          subTitle={i18next.t("signup:Please click the below button to sign in")}
-          extra={[
-            <Button type="primary" key="login" onClick={() => {
-              Setting.goToLogin(this, application);
-            }}>
-              {i18next.t("login:Sign In")}
-            </Button>
-          ]}
-        />
+      <div style={{display: "flex", flex: "1", justifyContent: "center"}}>
+        <Card>
+          <div style={{marginTop: "30px", marginBottom: "30px", textAlign: "center"}}>
+            {
+              Setting.renderHelmet(application)
+            }
+            {
+              Setting.renderLogo(application)
+            }
+            {
+              Setting.renderHelmet(application)
+            }
+            <Result
+              status="success"
+              title={i18next.t("signup:Your account has been created!")}
+              subTitle={i18next.t("signup:Please click the below button to sign in")}
+              extra={[
+                <Button type="primary" key="login" onClick={() => {
+                  const linkInStorage = sessionStorage.getItem("signinUrl");
+                  if (linkInStorage !== null && linkInStorage !== "") {
+                    Setting.goToLinkSoft(this, linkInStorage);
+                  } else {
+                    Setting.redirectToLoginPage(application, this.props.history);
+                  }
+                }}>
+                  {i18next.t("login:Sign In")}
+                </Button>,
+              ]}
+            />
+          </div>
+        </Card>
       </div>
     );
   }

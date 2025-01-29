@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,139 +14,258 @@
 
 import React from "react";
 import {Link} from "react-router-dom";
-import {Table} from 'antd';
+import {Switch, Table} from "antd";
 import * as Setting from "./Setting";
 import * as RecordBackend from "./backend/RecordBackend";
 import i18next from "i18next";
+import moment from "moment";
+import BaseListPage from "./BaseListPage";
 
-class RecordListPage extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      classes: props,
-      records: null,
-    };
-  }
-
+class RecordListPage extends BaseListPage {
   UNSAFE_componentWillMount() {
-    this.getRecords();
-  }
-
-  getRecords() {
-    RecordBackend.getRecords()
-      .then((res) => {
-        this.setState({
-          records: res,
-        });
-      });
+    this.state.pagination.pageSize = 20;
+    const {pagination} = this.state;
+    this.fetch({pagination});
   }
 
   newRecord() {
     return {
-      id  : "",
-      Record:{
-        clientIp:"",
-        timestamp:"",
-        organization:"",
-        username:"",
-        requestUri:"",
-        action:"login",
-      },
-    }
+      owner: "built-in",
+      name: "1234",
+      id: "1234",
+      clientIp: "::1",
+      timestamp: moment().format(),
+      organization: "built-in",
+      username: "admin",
+      requestUri: "/api/get-account",
+      action: "login",
+      isTriggered: false,
+    };
   }
 
   renderTable(records) {
-    const columns = [
+    let columns = [
       {
-        title: i18next.t("general:Client ip"),
-        dataIndex: ['Record', 'clientIp'],
-        key: 'id',
-        width: '120px',
-        fixed: 'left',
-        sorter: (a, b) => a.Record.clientIp.localeCompare(b.Record.clientIp),
+        title: i18next.t("general:Name"),
+        dataIndex: "name",
+        key: "name",
+        width: "320px",
+        sorter: true,
+        ...this.getColumnSearchProps("name"),
+      },
+      {
+        title: i18next.t("general:ID"),
+        dataIndex: "id",
+        key: "id",
+        width: "90px",
+        sorter: true,
+        ...this.getColumnSearchProps("id"),
+      },
+      {
+        title: i18next.t("general:Client IP"),
+        dataIndex: "clientIp",
+        key: "clientIp",
+        width: "100px",
+        sorter: true,
+        ...this.getColumnSearchProps("clientIp"),
         render: (text, record, index) => {
-          return text;
-        }
+          return (
+            <a target="_blank" rel="noreferrer" href={`https://db-ip.com/${text}`}>
+              {text}
+            </a>
+          );
+        },
       },
       {
         title: i18next.t("general:Timestamp"),
-        dataIndex: ['Record', 'timestamp'],
-        key: 'id',
-        width: '160px',
-        sorter: (a, b) => a.Record.timestamp.localeCompare(b.Record.timestamp),
+        dataIndex: "createdTime",
+        key: "createdTime",
+        width: "150px",
+        sorter: true,
         render: (text, record, index) => {
           return Setting.getFormattedDate(text);
-        }
+        },
       },
       {
         title: i18next.t("general:Organization"),
-        dataIndex: ['Record', 'organization'],
-        key: 'id',
-        width: '120px',
-        sorter: (a, b) => a.Record.organization.localeCompare(b.Record.organization),
+        dataIndex: "organization",
+        key: "organization",
+        width: "110px",
+        sorter: true,
+        ...this.getColumnSearchProps("organization"),
         render: (text, record, index) => {
           return (
             <Link to={`/organizations/${text}`}>
               {text}
             </Link>
-          )
-        }
+          );
+        },
       },
       {
-        title: i18next.t("general:Username"),
-        dataIndex: ['Record', 'username'],
-        key: 'id',
-        width: '160px',
-        sorter: (a, b) => a.Record.username.localeCompare(b.Record.username),
+        title: i18next.t("general:User"),
+        dataIndex: "user",
+        key: "user",
+        width: "100px",
+        sorter: true,
+        ...this.getColumnSearchProps("user"),
         render: (text, record, index) => {
-          return text;
-        }
+          return (
+            <Link to={`/users/${record.organization}/${record.user}`}>
+              {text}
+            </Link>
+          );
+        },
       },
       {
-        title: i18next.t("general:Request uri"),
-        dataIndex: ['Record', 'requestUri'],
-        key: 'id',
-        width: '160px',
-        sorter: (a, b) => a.Record.requestUri.localeCompare(b.Record.requestUri),
-        render: (text, record, index) => {
-          return text;
-        }
+        title: i18next.t("general:Method"),
+        dataIndex: "method",
+        key: "method",
+        width: "110px",
+        sorter: true,
+        filterMultiple: false,
+        filters: [
+          {text: "GET", value: "GET"},
+          {text: "HEAD", value: "HEAD"},
+          {text: "POST", value: "POST"},
+          {text: "PUT", value: "PUT"},
+          {text: "DELETE", value: "DELETE"},
+          {text: "CONNECT", value: "CONNECT"},
+          {text: "OPTIONS", value: "OPTIONS"},
+          {text: "TRACE", value: "TRACE"},
+          {text: "PATCH", value: "PATCH"},
+        ],
+      },
+      {
+        title: i18next.t("general:Request URI"),
+        dataIndex: "requestUri",
+        key: "requestUri",
+        // width: "300px",
+        sorter: true,
+        ...this.getColumnSearchProps("requestUri"),
+      },
+      {
+        title: i18next.t("user:Language"),
+        dataIndex: "language",
+        key: "language",
+        width: "90px",
+        sorter: true,
+        ...this.getColumnSearchProps("language"),
+      },
+      {
+        title: i18next.t("record:Status code"),
+        dataIndex: "statusCode",
+        key: "statusCode",
+        width: "90px",
+        sorter: true,
+        ...this.getColumnSearchProps("statusCode"),
+      },
+      {
+        title: i18next.t("record:Response"),
+        dataIndex: "response",
+        key: "response",
+        width: "90px",
+        sorter: true,
+        ...this.getColumnSearchProps("response"),
+      },
+      {
+        title: i18next.t("record:Object"),
+        dataIndex: "object",
+        key: "object",
+        width: "90px",
+        sorter: true,
+        ...this.getColumnSearchProps("object"),
       },
       {
         title: i18next.t("general:Action"),
-        dataIndex: ['Record', 'action'],
-        key: 'id',
-        width: '160px',
-        sorter: (a, b) => a.Record.action.localeCompare(b.Record.action),
+        dataIndex: "action",
+        key: "action",
+        width: "200px",
+        sorter: true,
+        ...this.getColumnSearchProps("action"),
+        fixed: (Setting.isMobile()) ? "false" : "right",
         render: (text, record, index) => {
           return text;
-        }
+        },
+      },
+      {
+        title: i18next.t("record:Is triggered"),
+        dataIndex: "isTriggered",
+        key: "isTriggered",
+        width: "140px",
+        sorter: true,
+        fixed: (Setting.isMobile()) ? "false" : "right",
+        render: (text, record, index) => {
+          if (!["signup", "login", "logout", "update-user", "new-user"].includes(record.action)) {
+            return null;
+          }
+
+          return (
+            <Switch disabled checkedChildren="ON" unCheckedChildren="OFF" checked={text} />
+          );
+        },
       },
     ];
 
+    if (Setting.isLocalAdminUser(this.props.account)) {
+      columns = columns.filter(column => column.key !== "name");
+    }
+
+    const paginationProps = {
+      total: this.state.pagination.total,
+      pageSize: this.state.pagination.pageSize,
+      showQuickJumper: true,
+      showSizeChanger: true,
+      showTotal: () => i18next.t("general:{total} in total").replace("{total}", this.state.pagination.total),
+    };
+
     return (
       <div>
-        <Table scroll={{x: 'max-content'}} columns={columns} dataSource={records} rowKey="id" size="middle" bordered pagination={{pageSize: 100}}
-               title={() => (
-                 <div>
-                   {i18next.t("general:Records")}&nbsp;&nbsp;&nbsp;&nbsp;
-                 </div>
-               )}
-               loading={records === null}
+        <Table scroll={{x: "max-content"}} columns={columns} dataSource={records} rowKey="id" size="middle" bordered pagination={paginationProps}
+          title={() => (
+            <div>
+              {i18next.t("general:Records")}&nbsp;&nbsp;&nbsp;&nbsp;
+            </div>
+          )}
+          loading={this.state.loading}
+          onChange={this.handleTableChange}
         />
       </div>
     );
   }
 
-  render() {
-    return (
-      <div>
-        {
-          this.renderTable(this.state.records)
+  fetch = (params = {}) => {
+    let field = params.searchedColumn, value = params.searchText;
+    const sortField = params.sortField, sortOrder = params.sortOrder;
+    if (params.method !== undefined && params.method !== null) {
+      field = "method";
+      value = params.method;
+    }
+    this.setState({loading: true});
+    RecordBackend.getRecords(Setting.isDefaultOrganizationSelected(this.props.account) ? "" : Setting.getRequestOrganization(this.props.account), params.pagination.current, params.pagination.pageSize, field, value, sortField, sortOrder)
+      .then((res) => {
+        this.setState({
+          loading: false,
+        });
+        if (res.status === "ok") {
+          this.setState({
+            data: res.data,
+            pagination: {
+              ...params.pagination,
+              total: res.data2,
+            },
+            searchText: params.searchText,
+            searchedColumn: params.searchedColumn,
+          });
+        } else {
+          if (res.data.includes("Please login first")) {
+            this.setState({
+              loading: false,
+              isAuthorized: false,
+            });
+          }
         }
-      </div>
-    );
-  }
+      });
+  };
 }
 
 export default RecordListPage;

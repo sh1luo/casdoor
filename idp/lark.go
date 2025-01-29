@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,13 @@ package idp
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/nyaruka/phonenumbers"
 	"golang.org/x/oauth2"
 )
 
@@ -45,11 +46,11 @@ func (idp *LarkIdProvider) SetHttpClient(client *http.Client) {
 
 // getConfig return a point of Config, which describes a typical 3-legged OAuth2 flow
 func (idp *LarkIdProvider) getConfig(clientId string, clientSecret string, redirectUrl string) *oauth2.Config {
-	var endpoint = oauth2.Endpoint{
+	endpoint := oauth2.Endpoint{
 		TokenURL: "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
 	}
 
-	var config = &oauth2.Config{
+	config := &oauth2.Config{
 		Scopes:       []string{},
 		Endpoint:     endpoint,
 		ClientID:     clientId,
@@ -83,11 +84,20 @@ func (idp *LarkIdProvider) GetToken(code string) (*oauth2.Token, error) {
 		AppID     string `json:"app_id"`
 		AppSecret string `json:"app_secret"`
 	}{idp.Config.ClientID, idp.Config.ClientSecret}
+
 	data, err := idp.postWithBody(params, idp.Config.Endpoint.TokenURL)
+	if err != nil {
+		return nil, err
+	}
 
 	appToken := &LarkAccessToken{}
-	if err = json.Unmarshal(data, appToken); err != nil || appToken.Code != 0 {
+	err = json.Unmarshal(data, appToken)
+	if err != nil {
 		return nil, err
+	}
+
+	if appToken.Code != 0 {
+		return nil, fmt.Errorf("GetToken() error, appToken.Code: %d, appToken.Msg: %s", appToken.Code, appToken.Msg)
 	}
 
 	t := &oauth2.Token{
@@ -99,7 +109,6 @@ func (idp *LarkIdProvider) GetToken(code string) (*oauth2.Token, error) {
 	raw := make(map[string]interface{})
 	raw["code"] = code
 	t = t.WithExtra(raw)
-
 	return t, nil
 }
 
@@ -160,34 +169,57 @@ func (idp *LarkIdProvider) GetUserInfo(token *oauth2.Token) (*UserInfo, error) {
 		GrantType string `json:"grant_type"`
 		Code      string `json:"code"`
 	}{"authorization_code", token.Extra("code").(string)}
-	data, _ := json.Marshal(body)
+
+	data, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequest("POST", "https://open.feishu.cn/open-apis/authen/v1/access_token", strings.NewReader(string(data)))
 	if err != nil {
 		return nil, err
 	}
+
 	req.Header.Set("Content-Type", "application/json;charset=UTF-8")
 	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 
 	resp, err := idp.Client.Do(req)
-	data, err = ioutil.ReadAll(resp.Body)
-	err = resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	data, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	var larkUserInfo LarkUserInfo
-	if err = json.Unmarshal(data, &larkUserInfo); err != nil {
+	err = json.Unmarshal(data, &larkUserInfo)
+	if err != nil {
 		return nil, err
+	}
+
+	var phoneNumber string
+	var countryCode string
+	if len(larkUserInfo.Data.Mobile) != 0 {
+		phoneNumberParsed, err := phonenumbers.Parse(larkUserInfo.Data.Mobile, "")
+		if err != nil {
+			return nil, err
+		}
+		countryCode = phonenumbers.GetRegionCodeForNumber(phoneNumberParsed)
+		phoneNumber = fmt.Sprintf("%d", phoneNumberParsed.GetNationalNumber())
 	}
 
 	userInfo := UserInfo{
 		Id:          larkUserInfo.Data.OpenId,
-		DisplayName: larkUserInfo.Data.EnName,
-		Username:    larkUserInfo.Data.Name,
+		DisplayName: larkUserInfo.Data.Name,
+		Username:    larkUserInfo.Data.UserId,
 		Email:       larkUserInfo.Data.Email,
 		AvatarUrl:   larkUserInfo.Data.AvatarUrl,
+		Phone:       phoneNumber,
+		CountryCode: countryCode,
 	}
-
 	return &userInfo, nil
 }
 
@@ -196,21 +228,23 @@ func (idp *LarkIdProvider) postWithBody(body interface{}, url string) ([]byte, e
 	if err != nil {
 		return nil, err
 	}
+
 	r := strings.NewReader(string(bs))
 	resp, err := idp.Client.Post(url, "application/json;charset=UTF-8", r)
 	if err != nil {
 		return nil, err
 	}
-	data, err := ioutil.ReadAll(resp.Body)
+
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
+
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
 			return
 		}
 	}(resp.Body)
-
 	return data, nil
 }

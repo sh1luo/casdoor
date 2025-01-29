@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,16 +15,16 @@
 import {createButton} from "react-social-login-buttons";
 import {StaticBaseUrl} from "../Setting";
 
-function Icon({ width = 24, height = 24, color }) {
-    return <img src={`${StaticBaseUrl}/buttons/facebook.svg`} alt="Sign in with Facebook"/>;
+function Icon({width = 24, height = 24, color}) {
+  return <img src={`${StaticBaseUrl}/buttons/facebook.svg`} alt="Sign in with Facebook" />;
 }
 
 const config = {
-    text: "Sign in with Facebook",
-    icon: Icon,
-    iconFormat: name => `fa fa-${name}`,
-    style: {background: "#3b5998"},
-    activeStyle: {background: "#2b3f65"},
+  text: "Sign in with Facebook",
+  icon: Icon,
+  iconFormat: name => `fa fa-${name}`,
+  style: {background: "#3b5998"},
+  activeStyle: {background: "#2b3f65"},
 };
 
 const FacebookLoginButton = createButton(config);

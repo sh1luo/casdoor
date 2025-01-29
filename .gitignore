@@ -13,10 +13,12 @@
 *.out
 
 # Dependency directories (remove the comment below to include it)
-# vendor/
+vendor/
+bin/
 
 .idea/
 *.iml
+.vscode/settings.json
 
 tmp/
 tmpFiles/
@@ -25,3 +27,10 @@ logs/
 files/
 lastupdate.tmp
 commentsRouter*.go
+
+# ignore build result
+casdoor
+server
+
+# include helm-chart
+!manifests/casdoor

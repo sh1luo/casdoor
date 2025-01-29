@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,13 +15,17 @@
 package object
 
 type ProviderItem struct {
-	Name      string    `json:"name"`
-	CanSignUp bool      `json:"canSignUp"`
-	CanSignIn bool      `json:"canSignIn"`
-	CanUnlink bool      `json:"canUnlink"`
-	Prompted  bool      `json:"prompted"`
-	AlertType string    `json:"alertType"`
-	Provider  *Provider `json:"provider"`
+	Owner string `json:"owner"`
+	Name  string `json:"name"`
+
+	CanSignUp    bool      `json:"canSignUp"`
+	CanSignIn    bool      `json:"canSignIn"`
+	CanUnlink    bool      `json:"canUnlink"`
+	CountryCodes []string  `json:"countryCodes"`
+	Prompted     bool      `json:"prompted"`
+	SignupGroup  string    `json:"signupGroup"`
+	Rule         string    `json:"rule"`
+	Provider     *Provider `json:"provider"`
 }
 
 func (application *Application) GetProviderItem(providerName string) *ProviderItem {
@@ -33,8 +37,20 @@ func (application *Application) GetProviderItem(providerName string) *ProviderIt
 	return nil
 }
 
+func (application *Application) GetProviderItemByType(providerType string) *ProviderItem {
+	for _, item := range application.Providers {
+		if item.Provider.Type == providerType {
+			return item
+		}
+	}
+	return nil
+}
+
 func (pi *ProviderItem) IsProviderVisible() bool {
-	return pi.Provider.Category == "OAuth"
+	if pi.Provider == nil {
+		return false
+	}
+	return pi.Provider.Category == "OAuth" || pi.Provider.Category == "SAML" || pi.Provider.Category == "Web3"
 }
 
 func (pi *ProviderItem) isProviderPrompted() bool {

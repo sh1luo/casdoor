@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,9 +16,15 @@ package routers
 
 import (
 	"fmt"
+	"net"
+	"net/url"
+	"strings"
 
-	"github.com/astaxie/beego/context"
-	"github.com/casbin/casdoor/object"
+	"github.com/beego/beego/context"
+	"github.com/casdoor/casdoor/conf"
+	"github.com/casdoor/casdoor/i18n"
+	"github.com/casdoor/casdoor/object"
+	"github.com/casdoor/casdoor/util"
 )
 
 type Response struct {
@@ -29,6 +35,8 @@ type Response struct {
 }
 
 func responseError(ctx *context.Context, error string, data ...interface{}) {
+	// ctx.ResponseWriter.WriteHeader(http.StatusForbidden)
+
 	resp := Response{Status: "error", Msg: error}
 	switch len(data) {
 	case 2:
@@ -44,11 +52,20 @@ func responseError(ctx *context.Context, error string, data ...interface{}) {
 	}
 }
 
-func denyRequest(ctx *context.Context) {
-	responseError(ctx, "Unauthorized operation")
+func getAcceptLanguage(ctx *context.Context) string {
+	language := ctx.Request.Header.Get("Accept-Language")
+	return conf.GetLanguage(language)
 }
 
-func getUsernameByClientIdSecret(ctx *context.Context) string {
+func T(ctx *context.Context, error string) string {
+	return i18n.Translate(getAcceptLanguage(ctx), error)
+}
+
+func denyRequest(ctx *context.Context) {
+	responseError(ctx, T(ctx, "auth:Unauthorized operation"))
+}
+
+func getUsernameByClientIdSecret(ctx *context.Context) (string, error) {
 	clientId, clientSecret, ok := ctx.Request.BasicAuth()
 	if !ok {
 		clientId = ctx.Input.Query("clientId")
@@ -56,15 +73,40 @@ func getUsernameByClientIdSecret(ctx *context.Context) string {
 	}
 
 	if clientId == "" || clientSecret == "" {
-		return ""
+		return "", nil
 	}
 
-	application := object.GetApplicationByClientId(clientId)
-	if application == nil || application.ClientSecret != clientSecret {
-		return ""
+	application, err := object.GetApplicationByClientId(clientId)
+	if err != nil {
+		return "", err
+	}
+	if application == nil {
+		return "", fmt.Errorf("Application not found for client ID: %s", clientId)
 	}
 
-	return fmt.Sprintf("app/%s", application.Name)
+	if application.ClientSecret != clientSecret {
+		return "", fmt.Errorf("Incorrect client secret for application: %s", application.Name)
+	}
+
+	return fmt.Sprintf("app/%s", application.Name), nil
+}
+
+func getUsernameByKeys(ctx *context.Context) (string, error) {
+	accessKey, accessSecret := getKeys(ctx)
+	user, err := object.GetUserByAccessKey(accessKey)
+	if err != nil {
+		return "", err
+	}
+
+	if user == nil {
+		return "", fmt.Errorf("user not found for access key: %s", accessKey)
+	}
+
+	if accessSecret != user.AccessSecret {
+		return "", fmt.Errorf("incorrect access secret for user: %s", user.Name)
+	}
+
+	return user.GetId(), nil
 }
 
 func getSessionUser(ctx *context.Context) string {
@@ -84,4 +126,76 @@ func setSessionUser(ctx *context.Context, user string) {
 
 	// https://github.com/beego/beego/issues/3445#issuecomment-455411915
 	ctx.Input.CruSession.SessionRelease(ctx.ResponseWriter)
+}
+
+func setSessionExpire(ctx *context.Context, ExpireTime int64) {
+	SessionData := struct{ ExpireTime int64 }{ExpireTime: ExpireTime}
+	err := ctx.Input.CruSession.Set("SessionData", util.StructToJson(SessionData))
+	if err != nil {
+		panic(err)
+	}
+	ctx.Input.CruSession.SessionRelease(ctx.ResponseWriter)
+}
+
+func setSessionOidc(ctx *context.Context, scope string, aud string) {
+	err := ctx.Input.CruSession.Set("scope", scope)
+	if err != nil {
+		panic(err)
+	}
+	err = ctx.Input.CruSession.Set("aud", aud)
+	if err != nil {
+		panic(err)
+	}
+	ctx.Input.CruSession.SessionRelease(ctx.ResponseWriter)
+}
+
+func parseBearerToken(ctx *context.Context) string {
+	header := ctx.Request.Header.Get("Authorization")
+	tokens := strings.Split(header, " ")
+	if len(tokens) != 2 {
+		return ""
+	}
+
+	prefix := tokens[0]
+	if prefix != "Bearer" {
+		return ""
+	}
+
+	return tokens[1]
+}
+
+func getHostname(s string) string {
+	if s == "" {
+		return ""
+	}
+
+	l, err := url.Parse(s)
+	if err != nil {
+		panic(err)
+	}
+
+	res := l.Hostname()
+	return res
+}
+
+func removePort(s string) string {
+	ipStr, _, err := net.SplitHostPort(s)
+	if err != nil {
+		ipStr = s
+	}
+	return ipStr
+}
+
+func isHostIntranet(s string) bool {
+	ipStr, _, err := net.SplitHostPort(s)
+	if err != nil {
+		ipStr = s
+	}
+
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+
+	return ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
 }

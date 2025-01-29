@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+export const DefaultApplication = "app-built-in";
+
+export const CasvisorUrl = "";
+
 export const ShowGithubCorner = false;
-export const GithubRepo = "https://github.com/casbin/casdoor";
+export const IsDemoMode = false;
 
 export const ForceLanguage = "";
 export const DefaultLanguage = "en";
+
+export const InitThemeAlgorithm = true;
+export const ThemeDefault = {
+  themeType: "default",
+  colorPrimary: "#5734d3",
+  borderRadius: 6,
+  isCompact: false,
+};
+
+export const CustomFooter = null;
+
+// Blank or null to hide Ai Assistant button
+export const AiAssistantUrl = "https://ai.casbin.com";
