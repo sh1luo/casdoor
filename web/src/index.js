@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import React from 'react';
-import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
-import * as serviceWorker from './serviceWorker';
-import { BrowserRouter } from 'react-router-dom';
+import "core-js/es";
+import "react-app-polyfill/ie9";
+import "react-app-polyfill/stable";
+import React from "react";
+import {createRoot} from "react-dom/client";
+import "./index.css";
+import "./App.less";
+import App from "./App";
+import * as serviceWorker from "./serviceWorker";
+import {BrowserRouter} from "react-router-dom";
+import "./backend/FetchFilter";
 
-ReactDOM.render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>,
-  document.getElementById('root')
-);
+if (!String.prototype.replaceAll) {
+  String.prototype.replaceAll = function(search, replace) {
+    return this.split(search).join(replace);
+  };
+}
+
+const container = document.getElementById("root");
+
+const app = createRoot(container);
+
+app.render(<BrowserRouter>
+  <App />
+</BrowserRouter>);
 
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.

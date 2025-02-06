@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,16 +15,13 @@
 package object
 
 import (
-	"strings"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 
-	"github.com/casbin/casdoor/util"
-	"xorm.io/core"
+	"github.com/casdoor/casdoor/util"
+	"github.com/xorm-io/core"
 )
-
-type Code struct {
-	Message string `xorm:"varchar(100)" json:"message"`
-	Code    string `xorm:"varchar(100)" json:"code"`
-}
 
 type Token struct {
 	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
@@ -35,231 +32,188 @@ type Token struct {
 	Organization string `xorm:"varchar(100)" json:"organization"`
 	User         string `xorm:"varchar(100)" json:"user"`
 
-	Code        string `xorm:"varchar(100)" json:"code"`
-	AccessToken string `xorm:"mediumtext" json:"accessToken"`
-	ExpiresIn   int    `json:"expiresIn"`
-	Scope       string `xorm:"varchar(100)" json:"scope"`
-	TokenType   string `xorm:"varchar(100)" json:"tokenType"`
+	Code             string `xorm:"varchar(100) index" json:"code"`
+	AccessToken      string `xorm:"mediumtext" json:"accessToken"`
+	RefreshToken     string `xorm:"mediumtext" json:"refreshToken"`
+	AccessTokenHash  string `xorm:"varchar(100) index" json:"accessTokenHash"`
+	RefreshTokenHash string `xorm:"varchar(100) index" json:"refreshTokenHash"`
+	ExpiresIn        int    `json:"expiresIn"`
+	Scope            string `xorm:"varchar(100)" json:"scope"`
+	TokenType        string `xorm:"varchar(100)" json:"tokenType"`
+	CodeChallenge    string `xorm:"varchar(100)" json:"codeChallenge"`
+	CodeIsUsed       bool   `json:"codeIsUsed"`
+	CodeExpireIn     int64  `json:"codeExpireIn"`
 }
 
-type TokenWrapper struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	ExpiresIn   int    `json:"expires_in"`
-	Scope       string `json:"scope"`
+func GetTokenCount(owner, organization, field, value string) (int64, error) {
+	session := GetSession(owner, -1, -1, field, value, "", "")
+	return session.Count(&Token{Organization: organization})
 }
 
-func GetTokens(owner string) []*Token {
+func GetTokens(owner string, organization string) ([]*Token, error) {
 	tokens := []*Token{}
-	err := adapter.Engine.Desc("created_time").Find(&tokens, &Token{Owner: owner})
-	if err != nil {
-		panic(err)
-	}
-
-	return tokens
+	err := ormer.Engine.Desc("created_time").Find(&tokens, &Token{Owner: owner, Organization: organization})
+	return tokens, err
 }
 
-func getToken(owner string, name string) *Token {
+func GetPaginationTokens(owner, organization string, offset, limit int, field, value, sortField, sortOrder string) ([]*Token, error) {
+	tokens := []*Token{}
+	session := GetSession(owner, offset, limit, field, value, sortField, sortOrder)
+	err := session.Find(&tokens, &Token{Organization: organization})
+	return tokens, err
+}
+
+func getToken(owner string, name string) (*Token, error) {
 	if owner == "" || name == "" {
-		return nil
+		return nil, nil
 	}
 
 	token := Token{Owner: owner, Name: name}
-	existed, err := adapter.Engine.Get(&token)
+	existed, err := ormer.Engine.Get(&token)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	if existed {
-		return &token
+		return &token, nil
 	}
-	
-	return nil
+
+	return nil, nil
 }
 
-func getTokenByCode(code string) *Token {
-	token := Token{}
-	existed, err := adapter.Engine.Where("code=?", code).Get(&token)
+func getTokenByCode(code string) (*Token, error) {
+	token := Token{Code: code}
+	existed, err := ormer.Engine.Get(&token)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	if existed {
-		return &token
+		return &token, nil
 	}
-	
-	return nil
+
+	return nil, nil
 }
 
-func GetToken(id string) *Token {
+func GetTokenByAccessToken(accessToken string) (*Token, error) {
+	token := Token{AccessTokenHash: getTokenHash(accessToken)}
+	existed, err := ormer.Engine.Get(&token)
+	if err != nil {
+		return nil, err
+	}
+
+	if !existed {
+		return nil, nil
+	}
+	return &token, nil
+}
+
+func GetTokenByRefreshToken(refreshToken string) (*Token, error) {
+	token := Token{RefreshTokenHash: getTokenHash(refreshToken)}
+	existed, err := ormer.Engine.Get(&token)
+	if err != nil {
+		return nil, err
+	}
+
+	if !existed {
+		return nil, nil
+	}
+	return &token, nil
+}
+
+func GetTokenByTokenValue(tokenValue, tokenTypeHint string) (*Token, error) {
+	switch tokenTypeHint {
+	case "access_token", "access-token":
+		token, err := GetTokenByAccessToken(tokenValue)
+		if err != nil {
+			return nil, err
+		}
+		if token != nil {
+			return token, nil
+		}
+	case "refresh_token", "refresh-token":
+		token, err := GetTokenByRefreshToken(tokenValue)
+		if err != nil {
+			return nil, err
+		}
+		if token != nil {
+			return token, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func updateUsedByCode(token *Token) (bool, error) {
+	affected, err := ormer.Engine.Where("code=?", token.Code).Cols("code_is_used").Update(token)
+	if err != nil {
+		return false, err
+	}
+
+	return affected != 0, nil
+}
+
+func GetToken(id string) (*Token, error) {
 	owner, name := util.GetOwnerAndNameFromId(id)
 	return getToken(owner, name)
 }
 
-func UpdateToken(id string, token *Token) bool {
+func (token *Token) GetId() string {
+	return fmt.Sprintf("%s/%s", token.Owner, token.Name)
+}
+
+func getTokenHash(input string) string {
+	hash := sha256.Sum256([]byte(input))
+	res := hex.EncodeToString(hash[:])
+	if len(res) > 64 {
+		return res[:64]
+	}
+	return res
+}
+
+func (token *Token) popularHashes() {
+	if token.AccessTokenHash == "" && token.AccessToken != "" {
+		token.AccessTokenHash = getTokenHash(token.AccessToken)
+	}
+	if token.RefreshTokenHash == "" && token.RefreshToken != "" {
+		token.RefreshTokenHash = getTokenHash(token.RefreshToken)
+	}
+}
+
+func UpdateToken(id string, token *Token) (bool, error) {
 	owner, name := util.GetOwnerAndNameFromId(id)
-	if getToken(owner, name) == nil {
-		return false
+	if t, err := getToken(owner, name); err != nil {
+		return false, err
+	} else if t == nil {
+		return false, nil
 	}
 
-	affected, err := adapter.Engine.ID(core.PK{owner, name}).AllCols().Update(token)
+	token.popularHashes()
+
+	affected, err := ormer.Engine.ID(core.PK{owner, name}).AllCols().Update(token)
 	if err != nil {
-		panic(err)
+		return false, err
 	}
 
-	return affected != 0
+	return affected != 0, nil
 }
 
-func AddToken(token *Token) bool {
-	affected, err := adapter.Engine.Insert(token)
+func AddToken(token *Token) (bool, error) {
+	token.popularHashes()
+
+	affected, err := ormer.Engine.Insert(token)
 	if err != nil {
-		panic(err)
+		return false, err
 	}
 
-	return affected != 0
+	return affected != 0, nil
 }
 
-func DeleteToken(token *Token) bool {
-	affected, err := adapter.Engine.ID(core.PK{token.Owner, token.Name}).Delete(&Token{})
+func DeleteToken(token *Token) (bool, error) {
+	affected, err := ormer.Engine.ID(core.PK{token.Owner, token.Name}).Delete(&Token{})
 	if err != nil {
-		panic(err)
+		return false, err
 	}
 
-	return affected != 0
-}
-
-func CheckOAuthLogin(clientId string, responseType string, redirectUri string, scope string, state string) (string, *Application) {
-	if responseType != "code" {
-		return "response_type should be \"code\"", nil
-	}
-
-	application := GetApplicationByClientId(clientId)
-	if application == nil {
-		return "Invalid client_id", nil
-	}
-
-	validUri := false
-	for _, tmpUri := range application.RedirectUris {
-		if strings.Contains(redirectUri, tmpUri) {
-			validUri = true
-			break
-		}
-	}
-	if !validUri {
-		return "redirect_uri doesn't exist in the allowed Redirect URL list", application
-	}
-
-	// Mask application for /api/get-app-login
-	application.ClientSecret = ""
-	return "", application
-}
-
-func GetOAuthCode(userId string, clientId string, responseType string, redirectUri string, scope string, state string) *Code {
-	user := GetUser(userId)
-	if user == nil {
-		return &Code{
-			Message: "Invalid user_id",
-			Code:    "",
-		}
-	}
-
-	msg, application := CheckOAuthLogin(clientId, responseType, redirectUri, scope, state)
-	if msg != "" {
-		return &Code{
-			Message: msg,
-			Code:    "",
-		}
-	}
-
-	accessToken, err := generateJwtToken(application, user)
-	if err != nil {
-		panic(err)
-	}
-
-	token := &Token{
-		Owner:        application.Owner,
-		Name:         util.GenerateId(),
-		CreatedTime:  util.GetCurrentTime(),
-		Application:  application.Name,
-		Organization: user.Owner,
-		User:         user.Name,
-		Code:         util.GenerateClientId(),
-		AccessToken:  accessToken,
-		ExpiresIn:    application.ExpireInHours * 60,
-		Scope:        scope,
-		TokenType:    "Bearer",
-	}
-	AddToken(token)
-
-	return &Code{
-		Message: "",
-		Code:    token.Code,
-	}
-}
-
-func GetOAuthToken(grantType string, clientId string, clientSecret string, code string) *TokenWrapper {
-	application := GetApplicationByClientId(clientId)
-	if application == nil {
-		return &TokenWrapper{
-			AccessToken: "error: invalid client_id",
-			TokenType:   "",
-			ExpiresIn:   0,
-			Scope:       "",
-		}
-	}
-
-	if grantType != "authorization_code" {
-		return &TokenWrapper{
-			AccessToken: "error: grant_type should be \"authorization_code\"",
-			TokenType:   "",
-			ExpiresIn:   0,
-			Scope:       "",
-		}
-	}
-
-	if code == "" {
-		return &TokenWrapper{
-			AccessToken: "error: code should not be empty",
-			TokenType:   "",
-			ExpiresIn:   0,
-			Scope:       "",
-		}
-	}
-
-	token := getTokenByCode(code)
-	if token == nil {
-		return &TokenWrapper{
-			AccessToken: "error: invalid code",
-			TokenType:   "",
-			ExpiresIn:   0,
-			Scope:       "",
-		}
-	}
-
-	if application.Name != token.Application {
-		return &TokenWrapper{
-			AccessToken: "error: the token is for wrong application (client_id)",
-			TokenType:   "",
-			ExpiresIn:   0,
-			Scope:       "",
-		}
-	}
-
-	if application.ClientSecret != clientSecret {
-		return &TokenWrapper{
-			AccessToken: "error: invalid client_secret",
-			TokenType:   "",
-			ExpiresIn:   0,
-			Scope:       "",
-		}
-	}
-
-	tokenWrapper := &TokenWrapper{
-		AccessToken: token.AccessToken,
-		TokenType:   token.TokenType,
-		ExpiresIn:   token.ExpiresIn,
-		Scope:       token.Scope,
-	}
-
-	return tokenWrapper
+	return affected != 0, nil
 }

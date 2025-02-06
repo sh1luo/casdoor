@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package idp
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -46,11 +46,11 @@ func (idp *GitlabIdProvider) SetHttpClient(client *http.Client) {
 
 // getConfig return a point of Config, which describes a typical 3-legged OAuth2 flow
 func (idp *GitlabIdProvider) getConfig(clientId string, clientSecret string, redirectUrl string) *oauth2.Config {
-	var endpoint = oauth2.Endpoint{
+	endpoint := oauth2.Endpoint{
 		TokenURL: "https://gitlab.com/oauth/token",
 	}
 
-	var config = &oauth2.Config{
+	config := &oauth2.Config{
 		Scopes:       []string{"read_user+profile"},
 		Endpoint:     endpoint,
 		ClientID:     clientId,
@@ -85,7 +85,7 @@ func (idp *GitlabIdProvider) GetToken(code string) (*oauth2.Token, error) {
 		return nil, err
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -204,18 +204,18 @@ type GitlabUserInfo struct {
 
 // GetUserInfo use GitlabProviderToken gotten before return GitlabUserInfo
 func (idp *GitlabIdProvider) GetUserInfo(token *oauth2.Token) (*UserInfo, error) {
-	resp, err := idp.Client.Get("https://gitlab.com/api/v4/user?access_token="+token.AccessToken)
+	resp, err := idp.Client.Get("https://gitlab.com/api/v4/user?access_token=" + token.AccessToken)
 	if err != nil {
 		return nil, err
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	guser := GitlabUserInfo{}
-	if err = json.Unmarshal(data, &guser);err != nil {
+	if err = json.Unmarshal(data, &guser); err != nil {
 		return nil, err
 	}
 

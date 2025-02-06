@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,9 +17,10 @@ package routers
 import (
 	"fmt"
 
-	"github.com/astaxie/beego/context"
-	"github.com/casbin/casdoor/object"
-	"github.com/casbin/casdoor/util"
+	"github.com/beego/beego/context"
+	"github.com/casdoor/casdoor/object"
+	"github.com/casdoor/casdoor/util"
+	"github.com/casvisor/casvisor-go-sdk/casvisorsdk"
 )
 
 func getUser(ctx *context.Context) (username string) {
@@ -45,25 +46,66 @@ func getUserByClientIdSecret(ctx *context.Context) string {
 		return ""
 	}
 
-	application := object.GetApplicationByClientId(clientId)
+	application, err := object.GetApplicationByClientId(clientId)
+	if err != nil {
+		panic(err)
+	}
+
 	if application == nil || application.ClientSecret != clientSecret {
 		return ""
 	}
 
-	return fmt.Sprintf("%s/%s", application.Organization, application.Name)
+	return util.GetId(application.Organization, application.Name)
 }
 
 func RecordMessage(ctx *context.Context) {
-	if ctx.Request.URL.Path == "/api/login" {
+	if ctx.Request.URL.Path == "/api/login" || ctx.Request.URL.Path == "/api/signup" {
 		return
 	}
 
-	record := util.Records(ctx)
-
 	userId := getUser(ctx)
-	if userId != "" {
-		record.Organization, record.Username = util.GetOwnerAndNameFromId(userId)
+
+	ctx.Input.SetParam("recordUserId", userId)
+}
+
+func AfterRecordMessage(ctx *context.Context) {
+	record, err := object.NewRecord(ctx)
+	if err != nil {
+		fmt.Printf("AfterRecordMessage() error: %s\n", err.Error())
+		return
 	}
 
-	object.AddRecord(record)
+	userId := ctx.Input.Params()["recordUserId"]
+	if userId != "" {
+		record.Organization, record.User = util.GetOwnerAndNameFromId(userId)
+	}
+
+	var record2 *casvisorsdk.Record
+	recordSignup := ctx.Input.Params()["recordSignup"]
+	if recordSignup == "true" {
+		record2 = object.CopyRecord(record)
+		record2.Action = "new-user"
+
+		var user *object.User
+		user, err = object.GetUser(userId)
+		if err != nil {
+			fmt.Printf("AfterRecordMessage() error: %s\n", err.Error())
+			return
+		}
+		if user == nil {
+			err = fmt.Errorf("the user: %s is not found", userId)
+			fmt.Printf("AfterRecordMessage() error: %s\n", err.Error())
+			return
+		}
+
+		record2.Object = util.StructToJson(user)
+	}
+
+	util.SafeGoroutine(func() {
+		object.AddRecord(record)
+
+		if record2 != nil {
+			object.AddRecord(record2)
+		}
+	})
 }

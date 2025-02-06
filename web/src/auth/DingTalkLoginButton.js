@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,16 +15,16 @@
 import {createButton} from "react-social-login-buttons";
 import {StaticBaseUrl} from "../Setting";
 
-function Icon({ width = 24, height = 24, color }) {
-    return <img src={`${StaticBaseUrl}/buttons/dingtalk.svg`} alt="Sign in with DingTalk"/>;
+function Icon({width = 24, height = 24, color}) {
+  return <img src={`${StaticBaseUrl}/buttons/dingtalk.svg`} alt="Sign in with DingTalk" />;
 }
 
 const config = {
-    text: "Sign in with DingTalk",
-    icon: Icon,
-    iconFormat: name => `fa fa-${name}`,
-    style: {background: "#0191e0"},
-    activeStyle: {background: "rgb(76,143,208)"},
+  text: "Sign in with DingTalk",
+  icon: Icon,
+  iconFormat: name => `fa fa-${name}`,
+  style: {background: "#0191e0"},
+  activeStyle: {background: "rgb(76,143,208)"},
 };
 
 const DingTalkLoginButton = createButton(config);

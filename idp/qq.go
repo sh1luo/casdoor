@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -48,11 +48,11 @@ func (idp *QqIdProvider) SetHttpClient(client *http.Client) {
 }
 
 func (idp *QqIdProvider) getConfig() *oauth2.Config {
-	var endpoint = oauth2.Endpoint{
+	endpoint := oauth2.Endpoint{
 		TokenURL: "https://graph.qq.com/oauth2.0/token",
 	}
 
-	var config = &oauth2.Config{
+	config := &oauth2.Config{
 		Scopes:   []string{"get_user_info"},
 		Endpoint: endpoint,
 	}
@@ -75,7 +75,10 @@ func (idp *QqIdProvider) GetToken(code string) (*oauth2.Token, error) {
 	}
 
 	defer resp.Body.Close()
-	tokenContent, err := ioutil.ReadAll(resp.Body)
+	tokenContent, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 
 	re := regexp.MustCompile("token=(.*?)&")
 	matched := re.FindAllStringSubmatch(string(tokenContent), -1)
@@ -145,7 +148,10 @@ func (idp *QqIdProvider) GetUserInfo(token *oauth2.Token) (*UserInfo, error) {
 	}
 
 	defer resp.Body.Close()
-	openIdBody, err := ioutil.ReadAll(resp.Body)
+	openIdBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 
 	re := regexp.MustCompile("\"openid\":\"(.*?)\"}")
 	matched := re.FindAllStringSubmatch(string(openIdBody), -1)
@@ -161,7 +167,7 @@ func (idp *QqIdProvider) GetUserInfo(token *oauth2.Token) (*UserInfo, error) {
 	}
 
 	defer resp.Body.Close()
-	userInfoBody, err := ioutil.ReadAll(resp.Body)
+	userInfoBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +184,7 @@ func (idp *QqIdProvider) GetUserInfo(token *oauth2.Token) (*UserInfo, error) {
 
 	userInfo := UserInfo{
 		Id:          openId,
+		Username:    qqUserInfo.Nickname,
 		DisplayName: qqUserInfo.Nickname,
 		AvatarUrl:   qqUserInfo.FigureurlQq1,
 	}

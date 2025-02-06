@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,9 +14,63 @@
 
 package controllers
 
-import "github.com/casbin/casdoor/object"
+import (
+	"strings"
 
-func (c *ApiController) GetOidcDiscovery() {
-	c.Data["json"] = object.GetOidcDiscovery()
+	"github.com/casdoor/casdoor/object"
+)
+
+// GetOidcDiscovery
+// @Title GetOidcDiscovery
+// @Tag OIDC API
+// @Description Get Oidc Discovery
+// @Success 200 {object} object.OidcDiscovery
+// @router /.well-known/openid-configuration [get]
+func (c *RootController) GetOidcDiscovery() {
+	host := c.Ctx.Request.Host
+	c.Data["json"] = object.GetOidcDiscovery(host)
+	c.ServeJSON()
+}
+
+// GetJwks
+// @Title GetJwks
+// @Tag OIDC API
+// @Success 200 {object} jose.JSONWebKey
+// @router /.well-known/jwks [get]
+func (c *RootController) GetJwks() {
+	jwks, err := object.GetJsonWebKeySet()
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	c.Data["json"] = jwks
+	c.ServeJSON()
+}
+
+// GetWebFinger
+// @Title GetWebFinger
+// @Tag OIDC API
+// @Param resource query string true "resource"
+// @Success 200 {object} object.WebFinger
+// @router /.well-known/webfinger [get]
+func (c *RootController) GetWebFinger() {
+	resource := c.Input().Get("resource")
+	rels := []string{}
+	host := c.Ctx.Request.Host
+
+	for key, value := range c.Input() {
+		if strings.HasPrefix(key, "rel") {
+			rels = append(rels, value...)
+		}
+	}
+
+	webfinger, err := object.GetWebFinger(resource, rels, host)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	c.Data["json"] = webfinger
+	c.Ctx.Output.ContentType("application/jrd+json")
 	c.ServeJSON()
 }

@@ -1,4 +1,4 @@
-// Copyright 2021 The casbin Authors. All Rights Reserved.
+// Copyright 2021 The Casdoor Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,12 +13,15 @@
 // limitations under the License.
 
 import React from "react";
-import {Button, Col, Row} from 'antd';
+import {Button, Col, Row} from "antd";
 import i18next from "i18next";
 import * as UserBackend from "../backend/UserBackend";
 import * as Setting from "../Setting";
 import * as Provider from "../auth/Provider";
 import * as AuthBackend from "../auth/AuthBackend";
+import {goToWeb3Url} from "../auth/ProviderButton";
+import AccountAvatar from "../account/AccountAvatar";
+import {WechatOfficialAccountModal} from "../auth/Util";
 
 class OAuthWidget extends React.Component {
   constructor(props) {
@@ -30,7 +33,7 @@ class OAuthWidget extends React.Component {
     };
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.getAddressOptions(this.props.application);
     this.getAffiliationOptions(this.props.application, this.props.user);
   }
@@ -84,18 +87,38 @@ class OAuthWidget extends React.Component {
 
   getUserProperty(user, providerType, propertyName) {
     const key = `oauth_${providerType}_${propertyName}`;
-    if (user.properties === null) return "";
+    if (user.properties === null) {return "";}
     return user.properties[key];
   }
 
-  unlinkUser(providerType) {
+  unlinkUser(providerType, linkedValue) {
     const body = {
       providerType: providerType,
+      // should add the unlink user's info, cause the user may not be logged in, but a admin want to unlink the user.
+      user: this.props.user,
     };
+    if (providerType === "MetaMask" || providerType === "Web3Onboard") {
+      import("../auth/Web3Auth")
+        .then(module => {
+          const delWeb3AuthToken = module.delWeb3AuthToken;
+          delWeb3AuthToken(linkedValue);
+          AuthBackend.unlink(body)
+            .then((res) => {
+              if (res.status === "ok") {
+                Setting.showMessage("success", "Unlinked successfully");
+
+                this.unlinked();
+              } else {
+                Setting.showMessage("error", `Failed to unlink: ${res.msg}`);
+              }
+            });
+        });
+      return;
+    }
     AuthBackend.unlink(body)
       .then((res) => {
-        if (res.status === 'ok') {
-          Setting.showMessage("success", `Unlinked successfully`);
+        if (res.status === "ok") {
+          Setting.showMessage("success", "Unlinked successfully");
 
           this.unlinked();
         } else {
@@ -113,6 +136,8 @@ class OAuthWidget extends React.Component {
     const displayName = this.getUserProperty(user, provider.type, "displayName");
     const email = this.getUserProperty(user, provider.type, "email");
     let avatarUrl = this.getUserProperty(user, provider.type, "avatarUrl");
+    // the account user
+    const account = this.props.account;
 
     if (avatarUrl === "" || avatarUrl === undefined) {
       avatarUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAQAAACROWYpAAAAHElEQVR42mNkoAAwjmoe1TyqeVTzqOZRzcNZMwB18wAfEFQkPQAAAABJRU5ErkJggg==";
@@ -129,24 +154,34 @@ class OAuthWidget extends React.Component {
       }
     }
 
+    let linkButtonWidth = "110px";
+    if (Setting.getLanguage() === "id") {
+      linkButtonWidth = "160px";
+    }
+
     return (
-      <Row key={provider.name} style={{marginTop: '20px'}} >
-        <Col style={{marginTop: '5px'}} span={this.props.labelSpan}>
+      <Row key={provider.name} style={{marginTop: "20px"}} >
+        <Col style={{marginTop: "5px"}} span={this.props.labelSpan}>
           {
             Setting.getProviderLogo(provider)
           }
-          <span style={{marginLeft: '5px'}}>
+          <span style={{marginLeft: "5px"}}>
             {
               `${provider.type}:`
             }
           </span>
         </Col>
         <Col span={24 - this.props.labelSpan} >
-          <img style={{marginRight: '10px'}} width={30} height={30} src={avatarUrl} alt={name} />
-          <span style={{width: this.props.labelSpan === 3 ? '300px' : '130px', display: (Setting.isMobile()) ? 'inline' : "inline-block"}}>
+          <AccountAvatar style={{marginRight: "10px"}} size={30} src={avatarUrl} alt={name} referrerPolicy="no-referrer" />
+          <span style={{
+            width: this.props.labelSpan === 3 ? "300px" : "200px",
+            display: (Setting.isMobile()) ? "inline" : "inline-block",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }} title={name}>
             {
               linkedValue === "" ? (
-                "(empty)"
+                `(${i18next.t("general:empty")})`
               ) : (
                 profileUrl === "" ? name : (
                   <a target="_blank" rel="noreferrer" href={profileUrl}>
@@ -160,20 +195,34 @@ class OAuthWidget extends React.Component {
           </span>
           {
             linkedValue === "" ? (
-              <a key={provider.displayName} href={Provider.getAuthUrl(application, provider, "link")}>
-                <Button style={{marginLeft: '20px', width: '80px'}} type="primary">{i18next.t("user:Link")}</Button>
-              </a>
+              provider.category === "Web3" ? (
+                <Button style={{marginLeft: "20px", width: linkButtonWidth}} type="primary" disabled={user.id !== account.id} onClick={() => goToWeb3Url(application, provider, "link")}>{i18next.t("user:Link")}</Button>
+              ) : (
+                provider.type === "WeChat" && provider.clientId2 !== "" && provider.clientSecret2 !== "" && provider.disableSsl === true && !navigator.userAgent.includes("MicroMessenger") ? (
+                  <a key={provider.displayName}>
+                    <Button style={{marginLeft: "20px", width: linkButtonWidth}} type="primary" disabled={user.id !== account.id} onClick={
+                      () => {
+                        WechatOfficialAccountModal(application, provider, "link");
+                      }
+                    }>{i18next.t("user:Link")}</Button>
+                  </a>
+                ) : (
+                  <a key={provider.displayName} href={user.id !== account.id ? null : Provider.getAuthUrl(application, provider, "link")}>
+                    <Button style={{marginLeft: "20px", width: linkButtonWidth}} type="primary" disabled={user.id !== account.id}>{i18next.t("user:Link")}</Button>
+                  </a>
+                )
+              )
             ) : (
-              <Button disabled={!providerItem.canUnlink} style={{marginLeft: '20px', width: '80px'}} onClick={() => this.unlinkUser(provider.type)}>{i18next.t("user:Unlink")}</Button>
+              <Button disabled={!providerItem.canUnlink && !Setting.isAdminUser(account)} style={{marginLeft: "20px", width: linkButtonWidth}} onClick={() => this.unlinkUser(provider.type, linkedValue)}>{i18next.t("user:Unlink")}</Button>
             )
           }
         </Col>
       </Row>
-    )
+    );
   }
 
   render() {
-    return this.renderIdp(this.props.user, this.props.application, this.props.providerItem)
+    return this.renderIdp(this.props.user, this.props.application, this.props.providerItem);
   }
 }
 
